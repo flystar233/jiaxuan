@@ -17,5 +17,10 @@ categories =['浪淘沙', '感皇恩', '新荷叶', '满庭芳', '瑞鹤仙', '�
   '念奴娇', '西江月', '南乡子', '暗香', '摸鱼儿', '沁园春', '长相思', '声声慢', '点绛唇', '清平乐', '瑞龙吟', '一剪梅', '千年调', '丑奴儿', '八声甘州', '小重山', '上西平', '乌夜啼']
 ## 词牌名使用频率
 <p align="center">
-    <img src="image/frequency.png" width="247",height="300"/><img src="image/bar.png" width="500",height="300"/>
+    <img src="image/frequency.png" width="247.5",height="300"/><img src="image/bar.png" width="500",height="300"/>
+</p>
+
+## 词频分析
+<p align="center">
+    <img src="image/echarts.png" width="750"/>
 </p>
