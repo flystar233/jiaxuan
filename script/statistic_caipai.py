@@ -20,4 +20,4 @@ data = data.replace(['『', '』', 'ˇ', '〖', '〗', '（增韵）'], '', rege
 df['分段字数'] = data.apply(lambda x: [len(i) for i in re.split('，|。|、',x) if i])
 
 
-df.to_csv('output.csv', index=False)
+df.to_csv('cipai_with_statistics.csv', index=False)
