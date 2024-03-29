@@ -40,14 +40,17 @@ def estimate_poetry(text):
             break
 
     score = 0
+    issue_data = []
     for item1, item2 in zip(pingze_text,pingze_database):
         if item1[1]!=item2 and item2!='中':
-            print(item1, item2)
+            issue_data.append((item1, item2))
         elif item1[1]==item2 or item2=='中':
             score+=1
     score= score/length*100
-    return guess_cipai,score
+    return guess_cipai,score,issue_data
 
 text = "云气上林梢，毕竟非空非色。风景不随人去，到而今留得。老无情味到篇章，诗债怕人索。却笑近来林下，有许多词客。"
 guess_cipai = estimate_poetry(text)
-print(guess_cipai)
+print(f"词牌名为： {guess_cipai[0]}\n平仄打分： {guess_cipai[1]:.2f}")
+for i in guess_cipai[2]:
+    print(f"不合平仄字： {i} ")
