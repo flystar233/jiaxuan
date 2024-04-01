@@ -3,9 +3,8 @@ import pandas as pd
 import re
 
 # 读取json文件
-with open('../data/新韵.json', 'r', encoding='utf-8') as f:
+with open('../data/词林新韵.json', 'r', encoding='utf-8') as f:
     xinyun = json.load(f)
-
 
 # 读取csv文件
 df = pd.read_csv('../data/cipai_with_statistics.csv')
