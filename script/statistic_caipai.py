@@ -2,10 +2,10 @@ import pandas as pd
 import re
 
 # 读取csv文件
-df = pd.read_csv('../data/cipai.csv')  # 将'filename.csv'替换为你的文件名
+df = pd.read_csv('../data/cipai_qdcp.csv')  # 将'filename.csv'替换为你的文件名
 
 # 提取第二列的数据
-data = df.iloc[:, 1]
+data = df.iloc[:, 2]
 
 # 计算第二列的中仄平一共加起来多少字
 df['中'] = data.str.count('中')
