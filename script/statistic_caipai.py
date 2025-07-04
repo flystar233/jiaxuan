@@ -2,7 +2,7 @@ import pandas as pd
 import re
 
 # 读取csv文件
-df = pd.read_csv('../data/cipai_qdcp.csv')  # 将'filename.csv'替换为你的文件名
+df = pd.read_csv('../data/cipai.csv')  # 将'filename.csv'替换为你的文件名
 
 # 提取第二列的数据
 data = df.iloc[:, 2]
