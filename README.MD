@@ -24,6 +24,9 @@ python plot_frequency.py
 ```sh
 python estimate_poetry.py
 ```
+<p align="center">
+    <img src="image/result.png" width="750"/>
+</p>
 ## 词牌名使用频率
 <p align="center">
     <img src="image/frequency.png" width="247.5",height="300"/><img src="image/bar.png" width="500",height="300"/>
