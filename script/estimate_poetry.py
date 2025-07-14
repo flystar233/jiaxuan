@@ -5,22 +5,45 @@ import argparse
 import os
 from typing import Tuple, List, Dict, Any, Optional
 
-def build_tone_dict(rhymebook_data: List[Dict[str, Any]]) -> Dict[str, str]:
+def build_tone_dict(rhymebook_data: List[Dict[str, Any]]) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
-    将韵书数据预处理为字到平仄的映射字典。
+    将韵书数据预处理为字到平仄的映射字典，同时返回韵部到所有字的映射。
     """
     tone_dict = {}
+    yunbu_dict = {}
     for item in rhymebook_data:
-        for key, value in item.items():
+        for yunbu_name, value in item.items():
+            if yunbu_name not in yunbu_dict:
+                yunbu_dict[yunbu_name] = set()
             for word in value.get('平', []):
                 tone_dict[word] = '平'
+                yunbu_dict[yunbu_name].add(word)
             for word in value.get('仄', []):
                 tone_dict[word] = '仄'
-    return tone_dict
+                yunbu_dict[yunbu_name].add(word)
+    # 如果你需要返回list而不是set
+    yunbu_dict = {k: list(v) for k, v in yunbu_dict.items()}
+    return tone_dict, yunbu_dict
 
 def load_rhymebook(rhymebook_choice: str) -> Dict[str, str]:
     """
     加载韵书文件并返回平仄字典。
+    """
+    rhymebook_map = {
+        '1': '../data/词林正韵.json',
+        '2': '../data/中华新韵.json'
+    }
+    rhymebook_path = rhymebook_map.get(rhymebook_choice, '../data/词林正韵.json')
+    if not os.path.exists(rhymebook_path):
+        raise FileNotFoundError(f"韵书文件未找到: {rhymebook_path}")
+    with open(rhymebook_path, 'r', encoding='utf-8') as f:
+        rhymebook_data = json.load(f)
+    tone_dict, _ = build_tone_dict(rhymebook_data)
+    return tone_dict
+
+def load_rhymebook_with_yunbu(rhymebook_choice: str) -> Tuple[Dict[str, str], Dict[str, List[Tuple[str, str]]]]:
+    """
+    加载韵书文件并返回平仄字典和字到韵部的映射。
     """
     rhymebook_map = {
         '1': '../data/词林正韵.json',
@@ -46,6 +69,26 @@ def load_cipai(cipai_choice: str) -> pd.DataFrame:
         raise FileNotFoundError(f"词牌谱文件未找到: {cipai_path}")
     return pd.read_csv(cipai_path)
 
+def load_yunjiao(filepath: str = '../data/yunjiao.csv') -> Dict[str, List[int]]:
+    """
+    读取韵脚文件，返回以“词牌名+作者”为键，韵脚位置列表为值的字典。
+    假设韵脚字段全部为带引号的JSON字符串。
+    """
+    yunjiao_dict = {}
+    df = pd.read_csv(filepath)
+    for idx, row in df.iterrows():
+        key = f"{row['词牌名']}|{row['作者']}"
+        yunjiao_str = str(row['韵脚']).strip()
+        if yunjiao_str.startswith('"') and yunjiao_str.endswith('"'):
+            yunjiao_str = yunjiao_str[1:-1]
+        try:
+            positions = json.loads(yunjiao_str)
+            yunjiao_dict[key] = positions
+        except Exception as e:
+            print(f"Warning:韵脚数据解析出错: {row.to_dict()}")
+            continue
+    return yunjiao_dict
+
 def preprocess_text(text: str) -> Tuple[str, int, List[int]]:
     """
     只保留汉字，统计总字数和分句字数。
@@ -57,17 +100,17 @@ def preprocess_text(text: str) -> Tuple[str, int, List[int]]:
 
 def guess_cipai_name(
     length: int, split_length: List[int], cipai_data: pd.DataFrame
-) -> Tuple[Optional[str], Optional[str]]:
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     根据总字数和分句字数猜测词牌名及其平仄规则。
     """
     for row in cipai_data.itertuples():
         try:
             if length == getattr(row, '总数') and str(split_length) == getattr(row, '分段字数'):
-                return getattr(row, '词牌名'), getattr(row, '韵律')
+                return getattr(row, '词牌名'), getattr(row, '作者'),getattr(row, '韵律')
         except Exception:
             continue
-    return None, None
+    return None, None, None
 
 def mark_tone(text: str, tone_dict: Dict[str, str]) -> List[Tuple[str, str]]:
     """
@@ -101,30 +144,52 @@ def get_score_tone(
 
 def estimate_poetry(
     text: str, rhymebook: str, cipai: str
-) -> Tuple[Optional[str], float, List[Tuple[Tuple[str, str], str]]]:
+) -> Tuple[Optional[str], float, List[Tuple[Tuple[str, str], str]], List[str], Dict[str, List[Tuple[str, str]]]]:
     """
     综合分析诗词文本，返回词牌名、平仄得分、不合平仄字。
     """
     try:
-        tone_dict = load_rhymebook(rhymebook)
+        tone_dict, yunbu_dict = load_rhymebook_with_yunbu(rhymebook)
+    except Exception as e:
+        print(f"加载韵书文件出错: {e}")
+        return None, 0, [], [], {}
+    try:
         cipai_data = load_cipai(cipai)
     except Exception as e:
-        print(f"加载数据文件出错: {e}")
-        return None, 0, []
+        print(f"加载词牌谱文件出错: {e}")
+        return None, 0, [], [], {}
+    try:
+        yunjiao_dict = load_yunjiao()
+    except Exception as e:
+        print(f"加载韵脚文件出错: {e}")
+        return None, 0, [], [], {}
 
     text_drop, length, split_length = preprocess_text(text)
-    guess_cipai, tone_database = guess_cipai_name(length, split_length, cipai_data)
-
+    guess_cipai, author, tone_database = guess_cipai_name(length, split_length, cipai_data)   
     if not tone_database:
         print("未能匹配到词牌名，请检查输入文本或词牌谱数据。")
-        return None, 0, []
+        return None, 0, [], [], {}
 
     # 只保留汉字的平仄规则
     tone_database = re.sub("[^\u4e00-\u9fa5]", "", tone_database)
     tone_database = list(re.sub(r"增韵", "", tone_database))
     tone_text = mark_tone(text_drop, tone_dict)
     score, issue_data = get_score_tone(tone_text, tone_database)
-    return guess_cipai, score, issue_data
+
+    # 韵脚字处理
+    yunjiao_positions = []
+    yunjiao_words = []
+    if guess_cipai and author:
+        key = f"{guess_cipai.strip()}|{author.strip()}"
+        yunjiao_positions = yunjiao_dict.get(key, [])
+        yunjiao_words = [text_drop[pos-1] for pos in yunjiao_positions if 0 < pos <= len(text_drop)]
+
+    # 查询韵脚字的韵部
+    yunjiao_yunbu = {}
+    for word in yunjiao_words:
+        yunjiao_yunbu[word] = [yunbu for yunbu, words in yunbu_dict.items() if word in words]
+
+    return guess_cipai, score, issue_data, yunjiao_words, yunjiao_yunbu
 
 def main():
     parser = argparse.ArgumentParser(
@@ -136,8 +201,8 @@ def main():
     parser.add_argument("-t", "--text", type=str, required=False, help="输入要分析的诗词文本")
     args = parser.parse_args()
 
-    text = args.text or "君王著意履声间。便令押、紫宸班。今代又尊韩。道吏部、文章泰山。一杯千岁，问公何事，早伴赤松闲。功业后来看。似江左、风流谢安。"
-    guess_cipai, score, issues = estimate_poetry(text, args.rhymebook or '1', args.cipai or '1')
+    text = args.text or "君如梁上燕。妾如手中扇。团团青影双双伴。秋来肠欲断。秋来肠欲断。黄昏泪眼。青山隔岸。但咫尺、如天远。病来只谢傍人劝。龙华三会愿。龙华三会愿。"
+    guess_cipai, score, issues, yunjiao_words, yunjiao_yunbu = estimate_poetry(text, args.rhymebook or '2', args.cipai or '1')
 
     print(f"\n分析结果:")
     print(f"输入文本：{text}")
@@ -150,6 +215,12 @@ def main():
                 print(f"  字：{word} 实际：{actual} 应为：{expected}")
         else:
             print("全部平仄合规！")
+        if yunjiao_words:
+            print("韵脚字韵部：")
+            for word in yunjiao_words:
+                print(f"  {word}: {yunjiao_yunbu.get(word, '未找到韵部')}")
+        else:
+            print("未找到韵脚信息或韵脚位置超出文本长度。")
     else:
         print("未能识别词牌名，无法评分。")
 
